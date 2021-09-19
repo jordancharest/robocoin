@@ -36,7 +36,11 @@ class Blockchain {
     async initializeChain() {
         if( this.height === -1){
             let block = new BlockClass.Block({data: 'Genesis Block'});
-            await this._addBlock(block);
+            try {
+                await this._addBlock(block);
+            } catch (error) {
+                console.log(error);
+            }
         }
     }
 
@@ -64,7 +68,21 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-           
+            block.height = self.chain.length;
+            block.time = new Date().getTime().toString().slice(0,-3);
+            if (self.chain.length > 0) {
+                block.previousBlockHash = self.chain[self.chain.length - 1].hash;
+            }
+            block.hash = SHA256(JSON.stringify(block)).toString();
+            self.chain.push(block);
+            self.height = self.chain.length - 1;
+
+            let errorLog = self.validateChain();
+            if (errorLog) {
+                reject(errorLog);
+            } else {
+                resolve(block);
+            }
         });
     }
 
@@ -78,7 +96,7 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-            
+            resolve(`${address}:${new Date().getTime().toString().slice(0,-3)}:starRegistry`);
         });
     }
 
@@ -102,7 +120,29 @@ class Blockchain {
     submitStar(address, message, signature, star) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            
+            let message_time = parseInt(message.split(':')[1]);
+            let current_time = parseInt(new Date().getTime().toString().slice(0, -3));
+            if (current_time - message_time > 300) {
+                reject("Message is too old!")
+            }
+            if (!bitcoinMessage.verify(message, address, signature)) {
+                reject("Can't verify message!")
+            }
+
+            let data = {
+                "address" : address,
+                "message" : message,
+                "signature" : signature,
+                "star" : star
+            };
+            let block = new BlockClass.Block(data);
+            try {
+                await this._addBlock(block);
+                resolve(block);
+            } catch (error) {
+                console.log(error);
+                reject(error);
+            }
         });
     }
 
@@ -115,7 +155,12 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-           
+            let block = self.chain.filter(p => p.hash === hash)[0];
+            if(block){
+                resolve(block);
+            } else {
+                resolve(null);
+            }
         });
     }
 
@@ -146,7 +191,17 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            
+            self.chain.forEach(block => {
+                try {
+                    let data = block.getBData();
+                } catch (error) {
+                    reject(error);
+                }
+                if (data.address === address) {
+                    stars.push(data.star)
+                }
+            });
+            resolve(stars);
         });
     }
 
@@ -159,8 +214,20 @@ class Blockchain {
     validateChain() {
         let self = this;
         let errorLog = [];
+        let previous_hash = null;
         return new Promise(async (resolve, reject) => {
-            
+            self.chain.forEach(block => {
+                let valid_block = block.validate();
+                if (!valid_block) {
+                    errorLog.push(`Block ${block.height} is invalid!`);
+                }
+
+                if (previous_hash && previous_hash !== block.previousBlockHash) {
+                    errorLog.push(`Broken chain at block ${block.height}!`);
+                }
+                previous_hash = block.hash;
+            });
+            resolve(errorLog);
         });
     }
 

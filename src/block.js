@@ -60,18 +60,14 @@ class Block {
             // Decoding the data to retrieve the JSON representation of the object
             let decoded_body = JSON.parse(decoded);
 
-            // return
+            // Resolve with the data if the object isn't the Genesis block
             if (self.previousBlockHash) {
                 resolve(decoded_body);
             } else {
                 reject("No block data in Genesis Block");
             }
         });
-
-        // Resolve with the data if the object isn't the Genesis block
-
     }
-
 }
 
 module.exports.Block = Block;                    // Exposing the Block class as a module
