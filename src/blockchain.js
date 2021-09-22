@@ -77,12 +77,13 @@ class Blockchain {
             self.chain.push(block);
             self.height = self.chain.length - 1;
 
-            let errorLog = self.validateChain();
-            if (errorLog) {
-                reject(errorLog);
-            } else {
-                resolve(block);
-            }
+            self.validateChain().then((errorLog) => {
+                if (errorLog.length !== 0) {
+                    reject(errorLog);
+                } else {
+                    resolve(block);
+                }
+            });
         });
     }
 
@@ -187,19 +188,21 @@ class Blockchain {
      * Remember the star should be returned decoded.
      * @param {*} address 
      */
-    getStarsByWalletAddress (address) {
+    getStarsByWalletAddress (address)  {
         let self = this;
         let stars = [];
-        return new Promise((resolve, reject) => {
+        console.log(`Getting stars for ${address}`)
+        return new Promise(async (resolve, reject) => {
             self.chain.forEach(block => {
-                try {
-                    let data = block.getBData();
-                } catch (error) {
-                    reject(error);
-                }
-                if (data.address === address) {
-                    stars.push(data.star)
-                }
+                block.getBData().then((data) => {
+                    if (data.address === address) {
+                        stars.push(data.star);
+                    }
+                })
+                .catch((error) => {
+                    console.error(error);
+                    return;
+                });
             });
             resolve(stars);
         });

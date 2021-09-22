@@ -58,13 +58,13 @@ class Block {
             let decoded_str = hex2ascii(self.body);
 
             // Decoding the data to retrieve the JSON representation of the object
-            let decoded_body = JSON.parse(decoded);
+            let decoded_body = JSON.parse(decoded_str);
 
             // Resolve with the data if the object isn't the Genesis block
             if (self.previousBlockHash) {
                 resolve(decoded_body);
             } else {
-                reject("No block data in Genesis Block");
+                reject("No stars in Genesis Block");
             }
         });
     }
